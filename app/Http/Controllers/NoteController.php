@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Note;
 use App\Helpers\Helper;
+use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -58,12 +60,21 @@ class NoteController extends Controller
         $validation = Validator::make($req->all(), [
             'title' => 'required|string|max:255',
             'content' => 'required|string',
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => [
+                'required',
+                'exists:categories,id',
+                function ($attribute, $value, $fail) {
+                    $category = Category::where('id', $value)->where('user_id', Auth::id())->first();
+                    if (!$category) {
+                        $fail('The selected category is invalid or does not belong to the user.');
+                    }
+                }
+            ],
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
         if ($validation->fails()) {
-            return Helper::APIResponse('error validation', 422, 'error validation', null);
+            return Helper::APIResponse('error validation', 422, $validation->errors(), null);
         }
 
         $imageName = null;
@@ -89,12 +100,21 @@ class NoteController extends Controller
         $validation = Validator::make($req->all(), [
             'title' => 'required|string|max:255',
             'content' => 'required|string',
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => [
+                'required',
+                'exists:categories,id',
+                function ($attribute, $value, $fail) {
+                    $category = Category::where('id', $value)->where('user_id', Auth::id())->first();
+                    if (!$category) {
+                        $fail('The selected category is invalid or does not belong to the user.');
+                    }
+                }
+            ],
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
         if ($validation->fails()) {
-            return Helper::APIResponse('error validation', 422, 'error validation', null);
+            return Helper::APIResponse('error validation', 422, $validation->errors(), null);
         }
 
         $note = Note::where('user_id', Auth::id())->find($note_id);
@@ -143,7 +163,7 @@ class NoteController extends Controller
 
     public function toggleFavorite(Request $req, $id)
     {
-        $note = Note::find($id);
+        $note = Note::where('id', $id)->where('user_id', Auth::id())->first();
 
         if (!$note) {
             return Helper::APIResponse('data not found', 404, 'not found', null);
@@ -181,10 +201,12 @@ class NoteController extends Controller
             }
         ])
             ->where('user_id', Auth::id())
-            ->where('title', 'LIKE', '%' . $query . '%')
-            ->orWhere('content', 'LIKE', '%' . $query . '%')
-            ->orWhereHas('category', function ($q) use ($query) {
-                $q->where('category', 'LIKE', '%' . $query . '%');
+            ->where(function ($q) use ($query) {
+                $q->where('title', 'LIKE', '%' . $query . '%')
+                    ->orWhere('content', 'LIKE', '%' . $query . '%')
+                    ->orWhereHas('category', function ($q) use ($query) {
+                        $q->where('category', 'LIKE', '%' . $query . '%');
+                    });
             })
             ->get();
 

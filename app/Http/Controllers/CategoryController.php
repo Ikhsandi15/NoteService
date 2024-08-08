@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\Helper;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
@@ -20,7 +21,12 @@ class CategoryController extends Controller
     public function create(Request $req)
     {
         $validation = Validator::make($req->all(), [
-            'category' => 'required|unique:categories'
+            'category_id' => [
+                'required',
+                Rule::unique('categories')->where(function ($query) {
+                    $query->where('user_id', Auth::id());
+                })
+            ],
         ]);
 
         if ($validation->fails()) {
@@ -38,7 +44,12 @@ class CategoryController extends Controller
     public function update(Request $req, $category_id)
     {
         $validation = Validator::make($req->all(), [
-            'category' => 'required|unique:categories'
+            'category_id' => [
+                'required',
+                Rule::unique('categories')->where(function ($query) {
+                    $query->where('user_id', Auth::id());
+                })
+            ],
         ]);
 
         if ($validation->fails()) {
